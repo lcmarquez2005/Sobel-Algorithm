@@ -9,17 +9,15 @@ sobel_y = np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]])
 
 def sobel_convolution_segment(args):
     """
-    Función para realizar la convolución Sobel en un segmento de imagen.
+    Aplicamos la convolución Sobel en un segmento de la imagen.
     
-    Parámetros:
-    - args: tupla que contiene (segment, start_row, end_row)
-        segment: porción de imagen a procesar
-        start_row: fila de inicio del segmento
-        end_row: fila final del segmento
+    Args:
+    - args: tupla (segment, start_row, end_row)
     
-    Retorna:
-    - gx: gradiente en dirección x para el segmento
-    - gy: gradiente en dirección y para el segmento
+    Returns:
+    - gx: gradiente en dirección x del segmento.
+    - gy: gradiente en dirección y del segmento.
+    - start_row: fila inicial del segmento.
     """
     segment, start_row, end_row = args
     height, width = segment.shape
@@ -27,7 +25,7 @@ def sobel_convolution_segment(args):
     gx = np.zeros_like(segment, dtype=np.float32)
     gy = np.zeros_like(segment, dtype=np.float32)
 
-    # Realizar la convolución Sobel
+    # Aplicar Sobel en cada píxel del segmento
     for i in range(1, height - 1):
         for j in range(1, width - 1):
             region = segment[i - 1:i + 2, j - 1:j + 2]
@@ -36,25 +34,28 @@ def sobel_convolution_segment(args):
 
     return gx, gy, start_row
 
+
+
+
+
 def split_image(image, num_segments):
     """
-    Divide la imagen en segmentos de forma simple.
-    
+    Divide la imagen en segmentos con superposición.
+
     Args:
-    - image: imagen de entrada
-    - num_segments: número de segmentos
-    
+    - image: imagen de entrada.
+    - num_segments: número de segmentos.
+
     Returns:
-    - lista de tuplas (segmento, start_row, end_row)
+    - lista de tuplas (segmento, start_row, end_row).
     """
     height, width = image.shape
     segment_height = height // num_segments
-    
     segments = []
+
     for i in range(num_segments):
-        start_row = i * segment_height
-        end_row = (i + 1) * segment_height if i < num_segments - 1 else height
-        
+        start_row = max(0, i * segment_height - 1)  # Superposición superior
+        end_row = min(height, (i + 1) * segment_height + 1)  # Superposición inferior
         segment = image[start_row:end_row, :]
         segments.append((segment, start_row, end_row))
     
@@ -62,65 +63,88 @@ def split_image(image, num_segments):
 
 
 
-def parallel_sobel_convolution(image, num_segments=None):
-    """Aplicar convolución Sobel en paralelo."""
-    # Usar número de núcleos de CPU por defecto
+def reconstruir_imagen(resultados, gx_completo, gy_completo):
+    """
+    Reconstruye la imagen completa a partir de los gradientes calculados en cada segmento.
+
+    Args:
+    - resultados: lista de tuplas (gx, gy, start_row).
+    - gx_completo: matriz inicializada para almacenar el gradiente completo en dirección x.
+    - gy_completo: matriz inicializada para almacenar el gradiente completo en dirección y.
+    """
+    for index, (gx, gy, start_row) in enumerate(resultados):
+        segmento_altura = gx.shape[0]
+        
+        if index == 0:  # Primer segmento
+            gx_completo[start_row:start_row + segmento_altura - 1] = gx[:-1]
+            gy_completo[start_row:start_row + segmento_altura - 1] = gy[:-1]
+        elif index == len(resultados) - 1:  # Último segmento
+            gx_completo[start_row + 1:start_row + segmento_altura] = gx[1:]
+            gy_completo[start_row + 1:start_row + segmento_altura] = gy[1:]
+        else:  # Segmentos intermedios
+            gx_completo[start_row + 1:start_row + segmento_altura - 1] = gx[1:-1]
+            gy_completo[start_row + 1:start_row + segmento_altura - 1] = gy[1:-1]
+
+
+
+
+
+def parallel_sobel(image, num_segments=None):
+    """
+    Aplica la convolución Sobel en paralelo.
+
+    Args:
+    - image: imagen de entrada.
+    - num_segments: número de segmentos para procesamiento paralelo.
+
+    Returns:
+    - gradient: imagen resultante con la magnitud del gradiente.
+    """
+    # Número de segmentos predeterminado
     num_segments = num_segments or mp.cpu_count()
     
-    # Dividir imagen
+    # Dividir la imagen
     segments = split_image(image, num_segments)
     
     # Procesar segmentos en paralelo
     with mp.Pool(processes=num_segments) as pool:
-        # Aplicar función Sobel a cada segmento
-        results = pool.map(sobel_convolution_segment, segments)
+        resultados = pool.map(sobel_convolution_segment, segments)
     
-
-    # Reconstruir imagen
-    gx_full = np.zeros_like(image, dtype=np.float32)
-    gy_full = np.zeros_like(image, dtype=np.float32)
+    # Inicializar matrices completas
+    gx_completo = np.zeros_like(image, dtype=np.float32)
+    gy_completo = np.zeros_like(image, dtype=np.float32)
     
-    for gx, gy, start_row in results:
-        segment_height = gx.shape[0]
-        gx_full[start_row:start_row+segment_height, :] = gx
-        gy_full[start_row:start_row+segment_height, :] = gy
+    # Reconstruir la imagen
+    reconstruir_imagen(resultados, gx_completo, gy_completo)
     
     # Calcular magnitud del gradiente
-    gradient = np.sqrt(gx_full**2 + gy_full**2)
+    gradient = np.sqrt(gx_completo**2 + gy_completo**2)
     return np.clip(gradient, 0, 255).astype(np.uint8)
 
 
 
-    
+
 
 def main():
-    # Leer imagen en escala de grises
-    image = cv2.imread('BordesImagen/image.jpg', cv2.IMREAD_GRAYSCALE)
+    semgmentos = 8
+    # Cargar imagen en escala de grises
+    image = cv2.imread('BordesImagen/image2.png', cv2.IMREAD_GRAYSCALE)
     if image is None:
         print("Error: No se pudo cargar la imagen.")
         exit(1)
 
-    # Paso 1: Aplicar filtro de desenfoque (blur)
+    # Desenfocar la imagen
     image_blurred = cv2.blur(image, (3, 3))
 
-    # Probar diferentes números de segmentos
-    segment_options = [2, 4, 12, 20]
+    start_time = time.time()
+    result = parallel_sobel(image_blurred, semgmentos)
+    elapsed_time = time.time() - start_time
+
+    # Guardar resultado
+    output_filename = f'resultados/parallel_sobel_{semgmentos}_segmentos.jpg'
+    cv2.imwrite(output_filename, result)
     
-    for num_segments in segment_options:
-        # Paso 2: Aplicar la convolución Sobel en paralelo
-        start_time = time.time()
-        result = parallel_sobel_convolution(image_blurred, num_segments)
-        elapsed_time = time.time() - start_time
-
-        # Guardar resultado
-        output_filename = f'resultados/parallel_blurred_sobel_{num_segments}_segments.jpg'
-        cv2.imwrite(output_filename, result)
-        
-        print(f"Segmentos: {num_segments}")
-        print(f"Tiempo de procesamiento: {elapsed_time:.4f} segundos\n")
-
-
-
+    print(f"Segmentos: {semgmentos}, Tiempo: {elapsed_time:.4f} segundos")
 
 if __name__ == '__main__':
     main()
