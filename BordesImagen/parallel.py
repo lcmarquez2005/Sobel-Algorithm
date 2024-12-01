@@ -93,12 +93,12 @@ def parallel_sobel(image, num_segments=None):
     """
     Aplica la convolución Sobel en paralelo.
 
-    Args:
-    - image: imagen de entrada.
-    - num_segments: número de segmentos para procesamiento paralelo.
+    Argumentos de la funcion:
+        image: imagen de entrada.
+        num_segments: número de segmentos para procesamiento paralelo.
 
     Returns:
-    - gradient: imagen resultante con la magnitud del gradiente.
+        gradient: imagen resultante con la magnitud del gradiente.
     """
     # Número de segmentos predeterminado
     num_segments = num_segments or mp.cpu_count()
@@ -130,7 +130,7 @@ def main():
     # Cargar imagen en escala de grises
     image = cv2.imread('BordesImagen/image2.png', cv2.IMREAD_GRAYSCALE)
     if image is None:
-        print("Error: No se pudo cargar la imagen.")
+        print("error, no encuentro la imagen")
         exit(1)
 
     # Desenfocar la imagen
