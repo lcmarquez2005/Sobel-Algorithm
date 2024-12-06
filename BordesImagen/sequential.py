@@ -25,19 +25,19 @@ def sobel_convolution(image):
 
     # Calcular la magnitud del gradiente
     gradient = np.sqrt(gx**2 + gy**2)
-    gradient = np.clip(gradient, 0, 255)  # Asegurarse de que los valores estén en el rango [0, 255]
+    gradient = np.clip(gradient, 0, 255)  # Asegurarse de que los valores estén en el rango [0, 255] (rango de color)
     return gradient.astype(np.uint8)
 
 
 
 # Leer imagen en escala de grises
-image = cv2.imread('BordesImagen/image.jpg', cv2.IMREAD_GRAYSCALE)
+image = cv2.imread('BordesImagen/image2.png', cv2.IMREAD_GRAYSCALE)
 if image is None:
     print("Error: No se pudo cargar la imagen.")
     exit(1)
 
 # Paso 1: Aplicar filtro de desenfoque (blur) con kernel 5x5
-image_blurred = cv2.blur(image, (3, 3))
+image_blurred = cv2.blur(image, (2, 2))
 
 # Paso 2: Aplicar la convolución Sobel para detectar bordes
 start_time = time.time()
@@ -45,5 +45,5 @@ result = sobel_convolution(image_blurred)
 elapsed_time = time.time() - start_time
 
 # Guardar y mostrar resultados
-cv2.imwrite('resultadosSequential/sequential_blurred_sobel.jpg', result)
+cv2.imwrite('resultadosSequential/sequential.jpg', result)
 print(f"Tiempo de procesamiento: {elapsed_time:.4f} segundos")

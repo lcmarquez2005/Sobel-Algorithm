@@ -2,9 +2,12 @@ import numpy as np
 import cv2
 import time
 
-# Filtros Sobel
+
+#**** Forma de Aplicar el mismo algoritmo pero con librerias
+# Mascaras Sobel
 sobel_x = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]])
 sobel_y = np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]])
+
 
 def sobel_sequential(image):
     # Convertir a escala de grises si la imagen es en color
@@ -28,9 +31,6 @@ def sobel_sequential(image):
     return gradient.astype(np.uint8)
 
 
-
-
-
 # Leer imagen
 image = cv2.imread('BordesImagen/image.jpg', cv2.IMREAD_COLOR)
 if image is None:
@@ -41,19 +41,15 @@ else:
 
 
 
-
 # Medir tiempo
 start_time = time.time()
 result = sobel_sequential(image)
 elapsed_time = time.time() - start_time
 
 
-
-
 # Guardar y mostrar resultados
 cv2.imwrite('resultados/result_sequential_brightness_smoothed.jpg', result)
 print(f"Tiempo Secuencial: {elapsed_time:.4f} segundos")
-
 
 
 # Mostrar la imagen resultante

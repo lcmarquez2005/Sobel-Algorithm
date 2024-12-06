@@ -8,26 +8,16 @@ sobel_x = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]])
 sobel_y = np.array([[-1, -2, -1], [0, 0, 0], [1, 2, 1]])
 
 def sobel_convolution_segment(args):
-    """
-    Aplicamos la convolución Sobel en un segmento de la imagen.
-    
-    Args:
-    - args: tupla (segment, start_row, end_row)
-    
-    Returns:
-    - gx: gradiente en dirección x del segmento.
-    - gy: gradiente en dirección y del segmento.
-    - start_row: fila inicial del segmento.
-    """
-    segment, start_row, end_row = args
+
+    segment, start_row,end_row = args #atributos necesarios para que en el metodo main la imagen pueda ser mapeada
     height, width = segment.shape
     
-    gx = np.zeros_like(segment, dtype=np.float32)
-    gy = np.zeros_like(segment, dtype=np.float32)
+    gx = np.zeros_like(segment, dtype=np.float32) #grandiente de sobel en X
+    gy = np.zeros_like(segment, dtype=np.float32) #grandiente de sobel en Y
 
     # Aplicar Sobel en cada píxel del segmento
-    for i in range(1, height - 1):
-        for j in range(1, width - 1):
+    for i in range(1, height - 1): #vamos a iterar los pixeles de la altura del segmento que nos pasaron excepto 1 (borde)
+        for j in range(1, width - 1): #vamos a iterar los pixeles de el ancho del segmento que nos pasaron excepto 1 (borde)
             region = segment[i - 1:i + 2, j - 1:j + 2]
             gx[i, j] = np.sum(region * sobel_x)
             gy[i, j] = np.sum(region * sobel_y)
@@ -39,23 +29,14 @@ def sobel_convolution_segment(args):
 
 
 def split_image(image, num_segments):
-    """
-    Divide la imagen en segmentos con superposición.
-
-    Args:
-    - image: imagen de entrada.
-    - num_segments: número de segmentos.
-
-    Returns:
-    - lista de tuplas (segmento, start_row, end_row).
-    """
+    """Metodo para dividir la imagen en segmentos que seran los procesados"""
     height, width = image.shape
     segment_height = height // num_segments
     segments = []
 
     for i in range(num_segments):
-        start_row = max(0, i * segment_height - 1)  # Superposición superior
-        end_row = min(height, (i + 1) * segment_height + 1)  # Superposición inferior
+        start_row = max(0, i * segment_height - 1)  # Division superior
+        end_row = min(height, (i + 1) * segment_height + 1)  # Division inferior
         segment = image[start_row:end_row, :]
         segments.append((segment, start_row, end_row))
     
@@ -64,14 +45,7 @@ def split_image(image, num_segments):
 
 
 def reconstruir_imagen(resultados, gx_completo, gy_completo):
-    """
-    Reconstruye la imagen completa a partir de los gradientes calculados en cada segmento.
-
-    Args:
-    - resultados: lista de tuplas (gx, gy, start_row).
-    - gx_completo: matriz inicializada para almacenar el gradiente completo en dirección x.
-    - gy_completo: matriz inicializada para almacenar el gradiente completo en dirección y.
-    """
+    """Metodo para reconstruir la imagen"""
     for index, (gx, gy, start_row) in enumerate(resultados):
         segmento_altura = gx.shape[0]
         
@@ -90,18 +64,9 @@ def reconstruir_imagen(resultados, gx_completo, gy_completo):
 
 
 def parallel_sobel(image, num_segments=None):
-    """
-    Aplica la convolución Sobel en paralelo.
 
-    Argumentos de la funcion:
-        image: imagen de entrada.
-        num_segments: número de segmentos para procesamiento paralelo.
-
-    Returns:
-        gradient: imagen resultante con la magnitud del gradiente.
-    """
-    # Número de segmentos predeterminado
-    num_segments = num_segments or mp.cpu_count()
+    # Número de segmentos predeterminado, 
+    num_segments = num_segments or mp.cpu_count() ##DETECTAMOS los nucleos del procesador automaticamente si no se pasa un valor
     
     # Dividir la imagen
     segments = split_image(image, num_segments)
@@ -124,18 +89,19 @@ def parallel_sobel(image, num_segments=None):
 
 
 
-
+# Metodo principal que sirve para poder generar la pool de procesos mediante Multiprocessing (python libreria)
 def main():
-    semgmentos = 8
+    semgmentos = 8  or mp.cpu_count()
     # Cargar imagen en escala de grises
     image = cv2.imread('BordesImagen/image2.png', cv2.IMREAD_GRAYSCALE)
     if image is None:
         print("error, no encuentro la imagen")
         exit(1)
 
-    # Desenfocar la imagen
+    # Desenfocar la imagen, para eliminar un poco del ruido
     image_blurred = cv2.blur(image, (3, 3))
 
+    #empezamos a tomar el tiempo de ejecucion, para medir desde que mandamos a llamr al metodo de sobel 
     start_time = time.time()
     result = parallel_sobel(image_blurred, semgmentos)
     elapsed_time = time.time() - start_time
@@ -146,5 +112,9 @@ def main():
     
     print(f"Segmentos: {semgmentos}, Tiempo: {elapsed_time:.4f} segundos")
 
+
+
+# comprobacion de que estemos en el directorio al momennto de ejecutar. 
+# Puede no ser necesario si las imagenes son cargadas del mismo sitio del que las vas a ejecutar
 if __name__ == '__main__':
     main()
